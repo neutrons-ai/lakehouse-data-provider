@@ -43,6 +43,7 @@ all = [
 
 [project.scripts]
 lakehouse-provider-mcp = "lakehouse_provider.mcp:main"
+lakehouse-provider = "lakehouse_provider.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lakehouse_provider"]

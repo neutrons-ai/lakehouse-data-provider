@@ -9,6 +9,8 @@ This package provides:
 - **Configuration management** for lakehouse connection
 - **Query client** using DuckDB for efficient data access
 - **Standalone init script** for schema registration via `lakehouse init`
+- **Command-line interface** for quick data queries and exploration
+- **MCP server** for AI assistant integration (Claude Desktop, etc.)
 
 ## Quick Start
 
@@ -22,17 +24,98 @@ pip install -e .
 pip install -e ".[pandas,dev]"
 ```
 
+### Command-Line Interface
+
+The package includes a CLI for quick data access without needing the MCP server:
+
+```bash
+# List available tables
+lakehouse-provider list-tables
+
+# Get table schema
+lakehouse-provider get-schema records
+
+# Query data using DuckDB SQL
+lakehouse-provider query "SELECT * FROM read_parquet('s3://bucket/path/*.parquet') LIMIT 10"
+
+# Get a specific record by ID
+lakehouse-provider get-record records rec-0001
+
+# Search with filters (multiple filters supported)
+lakehouse-provider search records --filter category=A --limit 10
+lakehouse-provider search records --filter category=A --filter value=42.0
+
+# List recent records (ordered by created_at)
+lakehouse-provider list-recent events --limit 20
+
+# Count records (with optional filters)
+lakehouse-provider count records
+lakehouse-provider count records --filter category=A
+
+# Show configuration (without credentials)
+lakehouse-provider config
+
+# Output as JSON (add --json before the command)
+lakehouse-provider --json list-tables
+lakehouse-provider --json get-schema records
+```
+
+**Note**: The CLI uses the same configuration as the Python client (environment variables or `.env` file).
+
 ### Register Your Schema
 
 Register your tables with the lakehouse:
 
 ```bash
-# Using the lakehouse CLI
-lakehouse init -s scripts/init_tables.py -n template_provider
+# From the neutron-lakehouse directory (for .env access)
+cd ~/git/neutron-lakehouse
+lakehouse init -s ~/git/lakehouse-data-provider/scripts/init_tables.py -n template_provider --use-driver
 
 # Verify registration
-lakehouse describe template_provider
+lakehouse describe template_provider --use-driver
 ```
+
+### Generate and Ingest Sample Data
+
+Generate sample Parquet files:
+
+```bash
+# Generate sample data
+cd ~/git/lakehouse-data-provider
+python3 scripts/generate_sample_data.py --output data --records 100 --events 200
+```
+
+### Ingestion
+
+The provider includes a schema-specific ingestion script ([scripts/ingest_data.py](scripts/ingest_data.py)) that handles routing Parquet files to the correct tables. This script:
+- Reads `iceberg_table` metadata from Parquet file schemas
+- Falls back to filename patterns (`records.parquet` → `records` table, `events.parquet` → `events` table)
+- Supports both local and S3 paths
+
+To integrate with neutron-lakehouse, the ingest script can be called via spark-submit:
+
+```bash
+# Via spark-submit (in Kubernetes environment)
+spark-submit scripts/ingest_data.py \
+  --input-dir s3a://lakehouse/data/provider-data \
+  --namespace template_provider \
+  --catalog nessie
+
+# With specific table and mode
+spark-submit scripts/ingest_data.py \
+  --input-dir /path/to/records.parquet \
+  --namespace template_provider \
+  --table records \
+  --mode overwrite
+
+# Dry run to see routing
+spark-submit scripts/ingest_data.py \
+  --input-dir /path/to/data \
+  --namespace template_provider \
+  --dry-run
+```
+
+**Note**: The neutron-lakehouse CLI can be extended to use provider-specific ingest scripts, similar to how it uses init scripts.
 
 ### Query Data
 
@@ -85,7 +168,9 @@ lakehouse-data-provider/
 ├── pyproject.toml                    # Package configuration
 ├── README.md                         # This file
 ├── scripts/
-│   └── init_tables.py                # Standalone Spark init script
+│   ├── init_tables.py                # Standalone Spark init script
+│   ├── ingest_data.py                # Schema-specific ingestion script (Spark)
+│   └── generate_sample_data.py       # Generate sample Parquet files for ingestion
 ├── src/
 │   └── lakehouse_provider/
 │       ├── __init__.py               # Public API
