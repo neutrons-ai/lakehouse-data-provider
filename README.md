@@ -12,6 +12,21 @@ This package provides:
 - **Command-line interface** for quick data queries and exploration
 - **MCP server** for AI assistant integration (Claude Desktop, etc.)
 
+## Integration with neutron-lakehouse
+
+This provider is designed to work with the [neutron-lakehouse](https://github.com/your-org/neutron-lakehouse) CLI:
+
+```bash
+# Initialize lakehouse with your provider
+lakehouse init -s scripts/init_tables.py -n template_provider
+
+# Ingest data (handled by lakehouse CLI)
+lakehouse ingest --namespace template_provider --source data.parquet
+
+# View registry
+lakehouse registry
+```
+
 ## Quick Start
 
 ### Installation
@@ -22,42 +37,6 @@ pip install -e .
 
 # With optional dependencies
 pip install -e ".[pandas,dev]"
-```
-
-### Command-Line Interface
-
-The package includes a CLI for quick data access without needing the MCP server:
-
-```bash
-# List available tables
-lakehouse-provider list-tables
-
-# Get table schema
-lakehouse-provider get-schema records
-
-# Query data using DuckDB SQL
-lakehouse-provider query "SELECT * FROM read_parquet('s3://bucket/path/*.parquet') LIMIT 10"
-
-# Get a specific record by ID
-lakehouse-provider get-record records rec-0001
-
-# Search with filters (multiple filters supported)
-lakehouse-provider search records --filter category=A --limit 10
-lakehouse-provider search records --filter category=A --filter value=42.0
-
-# List recent records (ordered by created_at)
-lakehouse-provider list-recent events --limit 20
-
-# Count records (with optional filters)
-lakehouse-provider count records
-lakehouse-provider count records --filter category=A
-
-# Show configuration (without credentials)
-lakehouse-provider config
-
-# Output as JSON (add --json before the command)
-lakehouse-provider --json list-tables
-lakehouse-provider --json get-schema records
 ```
 
 **Note**: The CLI uses the same configuration as the Python client (environment variables or `.env` file).
@@ -161,26 +140,6 @@ LAKEHOUSE_S3_SECRET_KEY=password
 LAKEHOUSE_NAMESPACE=template_provider
 ```
 
-## Project Structure
-
-```
-lakehouse-data-provider/
-├── pyproject.toml                    # Package configuration
-├── README.md                         # This file
-├── scripts/
-│   ├── init_tables.py                # Standalone Spark init script
-│   ├── ingest_data.py                # Schema-specific ingestion script (Spark)
-│   └── generate_sample_data.py       # Generate sample Parquet files for ingestion
-├── src/
-│   └── lakehouse_provider/
-│       ├── __init__.py               # Public API
-│       ├── schema.py                 # PyArrow schema definitions
-│       ├── config.py                 # Configuration management
-│       ├── client.py                 # DuckDB query client
-│       └── types.py                  # Data models
-└── tests/                            # Unit tests
-```
-
 ## Customizing for Your Provider
 
 ### 1. Update the Namespace
@@ -230,43 +189,40 @@ TABLES = {
 }
 ```
 
-### 3. Add Domain-Specific Methods
+## Command-Line Interface
 
-Extend the `ProviderClient` in `src/lakehouse_provider/client.py`:
-
-```python
-def get_by_category(self, category: str, limit: int = 100) -> pa.Table:
-    """Get records by category."""
-    return self.search("records", filters={"category": category}, limit=limit)
-```
-
-## Development
-
-### Setup
+The package includes a CLI for quick data access without needing the MCP server:
 
 ```bash
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate
+# List available tables
+lakehouse-provider list-tables
 
-# Install with dev dependencies
-pip install -e ".[dev]"
-```
+# Get table schema
+lakehouse-provider get-schema records
 
-### Run Tests
+# Query data using DuckDB SQL
+lakehouse-provider query "SELECT * FROM read_parquet('s3://bucket/path/*.parquet') LIMIT 10"
 
-```bash
-pytest
-```
+# Get a specific record by ID
+lakehouse-provider get-record records rec-0001
 
-### Code Quality
+# Search with filters (multiple filters supported)
+lakehouse-provider search records --filter category=A --limit 10
+lakehouse-provider search records --filter category=A --filter value=42.0
 
-```bash
-# Linting
-ruff check .
+# List recent records (ordered by created_at)
+lakehouse-provider list-recent events --limit 20
 
-# Type checking
-mypy src/
+# Count records (with optional filters)
+lakehouse-provider count records
+lakehouse-provider count records --filter category=A
+
+# Show configuration (without credentials)
+lakehouse-provider config
+
+# Output as JSON (add --json before the command)
+lakehouse-provider --json list-tables
+lakehouse-provider --json get-schema records
 ```
 
 ## MCP Server
@@ -333,20 +289,6 @@ Once connected, you can ask Claude:
 - "Get the record with ID 'abc-123'"
 - "How many events are in the events table?"
 
-## Integration with neutron-lakehouse
-
-This provider is designed to work with the [neutron-lakehouse](https://github.com/your-org/neutron-lakehouse) CLI:
-
-```bash
-# Initialize lakehouse with your provider
-lakehouse init -s scripts/init_tables.py -n template_provider
-
-# Ingest data (handled by lakehouse CLI)
-lakehouse ingest --namespace template_provider --source data.parquet
-
-# View registry
-lakehouse registry
-```
 
 ## License
 
