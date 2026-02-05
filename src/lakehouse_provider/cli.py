@@ -270,22 +270,22 @@ def main():
 Examples:
   # List all tables
   lakehouse-provider list-tables
-  
+
   # Get schema for a table
   lakehouse-provider get-schema records
-  
+
   # Execute SQL query
   lakehouse-provider query "SELECT * FROM read_parquet('s3://...') LIMIT 10"
-  
+
   # Get a specific record
   lakehouse-provider get-record records rec-0001
-  
+
   # Search with filters
   lakehouse-provider search records --filter category=A --limit 10
-  
+
   # List recent records
   lakehouse-provider list-recent events --limit 20
-  
+
   # Count records
   lakehouse-provider count records
   lakehouse-provider count records --filter category=A

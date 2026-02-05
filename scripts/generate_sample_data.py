@@ -24,18 +24,18 @@ import pyarrow.parquet as pq
 def generate_records_data(num_records: int = 100) -> pa.Table:
     """
     Generate sample records data.
-    
+
     Matches the schema in init_tables.py for the 'records' table.
     """
     now = datetime.now()
     categories = ["A", "B", "C", "D"]
-    
+
     records = []
     for i in range(num_records):
         record_id = f"rec-{i:04d}"
         category = categories[i % len(categories)]
         created_at = (now - timedelta(days=num_records - i)).isoformat()
-        
+
         record = {
             "id": record_id,
             "category": category,
@@ -53,39 +53,46 @@ def generate_records_data(num_records: int = 100) -> pa.Table:
             "ingestion_time": now.isoformat(),
         }
         records.append(record)
-    
+
     # Convert to PyArrow Table
     # Need to match the exact schema from init_tables.py
-    schema = pa.schema([
-        pa.field("id", pa.string(), nullable=False),
-        pa.field("category", pa.string(), nullable=False),
-        pa.field("created_at", pa.string()),
-        pa.field("updated_at", pa.string()),
-        pa.field("name", pa.string()),
-        pa.field("description", pa.string()),
-        pa.field("value", pa.float64()),
-        pa.field("tags", pa.list_(pa.string())),
-        pa.field("attributes", pa.struct([
-            pa.field("key1", pa.string()),
-            pa.field("key2", pa.int64()),
-        ])),
-        pa.field("source_file", pa.string()),
-        pa.field("ingestion_time", pa.string()),
-    ])
-    
+    schema = pa.schema(
+        [
+            pa.field("id", pa.string(), nullable=False),
+            pa.field("category", pa.string(), nullable=False),
+            pa.field("created_at", pa.string()),
+            pa.field("updated_at", pa.string()),
+            pa.field("name", pa.string()),
+            pa.field("description", pa.string()),
+            pa.field("value", pa.float64()),
+            pa.field("tags", pa.list_(pa.string())),
+            pa.field(
+                "attributes",
+                pa.struct(
+                    [
+                        pa.field("key1", pa.string()),
+                        pa.field("key2", pa.int64()),
+                    ]
+                ),
+            ),
+            pa.field("source_file", pa.string()),
+            pa.field("ingestion_time", pa.string()),
+        ]
+    )
+
     return pa.Table.from_pylist(records, schema=schema)
 
 
 def generate_events_data(num_events: int = 200) -> pa.Table:
     """
     Generate sample events data.
-    
+
     Matches the schema in init_tables.py for the 'events' table.
     """
     now = datetime.now()
     categories = ["A", "B", "C", "D"]
     event_types = ["created", "updated", "processed", "archived"]
-    
+
     events = []
     for i in range(num_events):
         # Link events to records (assuming 100 records)
@@ -93,13 +100,13 @@ def generate_events_data(num_events: int = 200) -> pa.Table:
         category = categories[i % len(categories)]
         event_time = (now - timedelta(hours=num_events - i)).isoformat()
         event_type = event_types[i % len(event_types)]
-        
+
         event_data = {
             "user": f"user-{i % 10}",
             "status": "success" if i % 7 != 0 else "failed",
             "duration_ms": i * 10 + 50,
         }
-        
+
         event = {
             "id": f"evt-{i:05d}",
             "record_id": record_id,
@@ -109,31 +116,33 @@ def generate_events_data(num_events: int = 200) -> pa.Table:
             "event_data": json.dumps(event_data),
         }
         events.append(event)
-    
+
     # Convert to PyArrow Table
-    schema = pa.schema([
-        pa.field("id", pa.string(), nullable=False),
-        pa.field("record_id", pa.string(), nullable=False),
-        pa.field("category", pa.string(), nullable=False),
-        pa.field("event_time", pa.string()),
-        pa.field("event_type", pa.string()),
-        pa.field("event_data", pa.string()),
-    ])
-    
+    schema = pa.schema(
+        [
+            pa.field("id", pa.string(), nullable=False),
+            pa.field("record_id", pa.string(), nullable=False),
+            pa.field("category", pa.string(), nullable=False),
+            pa.field("event_time", pa.string()),
+            pa.field("event_type", pa.string()),
+            pa.field("event_data", pa.string()),
+        ]
+    )
+
     return pa.Table.from_pylist(events, schema=schema)
 
 
 def write_parquet(table: pa.Table, output_path: Path, table_name: str) -> None:
     """
     Write PyArrow table to Parquet file.
-    
+
     Args:
         table: PyArrow table to write
         output_path: Output directory
         table_name: Name of the table (used for filename)
     """
     output_path.mkdir(parents=True, exist_ok=True)
-    
+
     # Write with compression
     filename = output_path / f"{table_name}.parquet"
     pq.write_table(
@@ -142,14 +151,12 @@ def write_parquet(table: pa.Table, output_path: Path, table_name: str) -> None:
         compression="zstd",
         use_dictionary=True,
     )
-    
+
     print(f"  ✓ Wrote {len(table)} rows to {filename}")
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate sample data for the template provider"
-    )
+    parser = argparse.ArgumentParser(description="Generate sample data for the template provider")
     parser.add_argument(
         "--output",
         "-o",
@@ -169,25 +176,25 @@ def main():
         help="Number of events to generate (default: 200)",
     )
     args = parser.parse_args()
-    
+
     output_path = Path(args.output)
-    
+
     print(f"Generating sample data...")
     print(f"  Output directory: {output_path}")
     print(f"  Records: {args.records}")
     print(f"  Events: {args.events}")
     print()
-    
+
     # Generate and write records
     print("Generating records table...")
     records_table = generate_records_data(args.records)
     write_parquet(records_table, output_path, "records")
-    
+
     # Generate and write events
     print("\nGenerating events table...")
     events_table = generate_events_data(args.events)
     write_parquet(events_table, output_path, "events")
-    
+
     print(f"\n✓ Sample data generation complete!")
     print(f"\nTo ingest this data into the lakehouse:")
     print(f"  cd ~/git/neutron-lakehouse")
